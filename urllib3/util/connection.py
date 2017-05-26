@@ -1,8 +1,24 @@
 from __future__ import absolute_import
-from functools import lru_cache
 import socket
 from .wait import wait_for_read
 from .selectors import HAS_SELECT, SelectorError
+
+
+try:
+    from functools import lru_cache
+    @lru_cache(maxsize=32)
+    def _getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        """
+        Cached wrapper over getaddrinfo. DNS resolution calls are LRU cached
+        to improve performance.
+        """
+        return socket.getaddrinfo(host, port, family, socket.SOCK_STREAM)
+except ImportError:
+    def _getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        """
+        Dummy wrapper over getaddrinfo for backwards compatibility.
+        """
+        return socket.getaddrinfo(host, port, family, socket.SOCK_STREAM)
 
 
 def is_connection_dropped(conn):  # Platform-specific
@@ -28,15 +44,6 @@ def is_connection_dropped(conn):  # Platform-specific
         return bool(wait_for_read(sock, timeout=0.0))
     except SelectorError:
         return True
-
-
-@lru_cache(maxsize=32)
-def _getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
-    """
-    Cached wrapper over getaddrinfo. DNS resolution calls are LRU cached
-    to improve performance.
-    """
-    return socket.getaddrinfo(host, port, family, socket.SOCK_STREAM)
 
 
 # This function is copied from socket.py in the Python 2.7 standard
