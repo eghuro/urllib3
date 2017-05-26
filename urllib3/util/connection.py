@@ -6,6 +6,7 @@ from .selectors import HAS_SELECT, SelectorError
 
 try:
     from functools import lru_cache
+
     @lru_cache(maxsize=32)
     def _getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
         """
