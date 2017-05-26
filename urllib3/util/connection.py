@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from functools import lru_cache
 import socket
 from .wait import wait_for_read
 from .selectors import HAS_SELECT, SelectorError
@@ -29,6 +30,15 @@ def is_connection_dropped(conn):  # Platform-specific
         return True
 
 
+@lru_cache(maxsize=32)
+def _getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+    """
+    Cached wrapper over getaddrinfo. DNS resolution calls are LRU cached
+    to improve performance.
+    """
+    return socket.getaddrinfo(host, port, family, socket.SOCK_STREAM)
+
+
 # This function is copied from socket.py in the Python 2.7 standard
 # library test suite. Added to its signature is only `socket_options`.
 # One additional modification is that we avoid binding to IPv6 servers
@@ -57,7 +67,8 @@ def create_connection(address, timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
     # The original create_connection function always returns all records.
     family = allowed_gai_family()
 
-    for res in socket.getaddrinfo(host, port, family, socket.SOCK_STREAM):
+    # Using wrapper over socket.getaddrinfo with LRU cache.
+    for res in _getaddrinfo(host, port, family, socket.SOCK_STREAM):
         af, socktype, proto, canonname, sa = res
         sock = None
         try:
